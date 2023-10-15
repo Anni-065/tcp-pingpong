@@ -2,8 +2,25 @@ import socket
 import time
 import keyboard
 import os
+import pandas as pd
+from datetime import datetime
 
-def start_client(host, port):
+# Sorry I know this is ugly but I swear I couldn't find any other way to access the file :///
+script_dir = os.path.dirname(__file__)
+csv_file_path = os.path.join(os.path.dirname(
+    script_dir), 'data', 'wr_sensor_data.csv')
+
+
+def read_data_for_day(csv_file, target_date):
+    df = pd.read_csv(csv_file)
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+    filtered_data = df[df['Timestamp'].dt.date ==
+                       target_date].to_string(index=False)
+
+    return filtered_data
+
+
+def start_client(host, port, target_date):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((host, port))
 
@@ -18,13 +35,19 @@ def start_client(host, port):
 
     while not is_quit:
         for i in range(5):
-            message = "ping"
+            if i == 0:
+                data = read_data_for_day(csv_file_path, target_date)
+                message = f"data;{target_date};{data}"
+            else:
+                message = "ping"
+
             start_time = time.time()
             client_socket.send(message.encode('utf-8'))
             response = client_socket.recv(1024).decode('utf-8')
             end_time = time.time()
             round_trip_time = (end_time - start_time) * 1000
-            print(f"Received: {response} (RRT: {round_trip_time:.3f}ms)")
+            print(
+                f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
 
         input("Press Enter to send 5 more pings or ESC to quit the client")
 
@@ -32,8 +55,10 @@ def start_client(host, port):
     client_socket.close()
     os._exit(0)
 
+
 if __name__ == "__main__":
     host = "localhost"
     port = 8080
+    target_date = datetime(2023, 10, 10).date()
 
-    start_client(host, port)
+    start_client(host, port, target_date)

@@ -10,6 +10,8 @@ script_dir = os.path.dirname(__file__)
 csv_file_path = os.path.join(os.path.dirname(
     script_dir), 'data', 'wr_sensor_data.csv')
 
+timeout = 5
+
 
 def read_data_for_day(csv_file, target_date):
     df = pd.read_csv(csv_file)
@@ -23,6 +25,7 @@ def read_data_for_day(csv_file, target_date):
 def start_client(host, port, target_date):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((host, port))
+    client_socket.settimeout(timeout)
 
     is_quit = False
 
@@ -41,13 +44,16 @@ def start_client(host, port, target_date):
             else:
                 message = "ping"
 
-            start_time = time.time()
-            client_socket.send(message.encode('utf-8'))
-            response = client_socket.recv(1024).decode('utf-8')
-            end_time = time.time()
-            round_trip_time = (end_time - start_time) * 1000
-            print(
-                f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
+            try:
+                start_time = time.time()
+                client_socket.send(message.encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                end_time = time.time()
+                round_trip_time = (end_time - start_time) * 1000
+                print(
+                    f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
+            except socket.timeout:
+                print(f"Timeout: No response from server after {timeout}s")
 
         input("Press Enter to send 5 more pings or ESC to quit the client")
 

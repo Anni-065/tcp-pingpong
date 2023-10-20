@@ -1,5 +1,9 @@
+import signal
 import socket
+import sys
 import threading
+
+server_running = True
 
 
 def start_server(host, port):
@@ -11,15 +15,23 @@ def start_server(host, port):
 
     connected_clients = []
 
-    while True:
-        client_socket, client_address = server_socket.accept()
-        print(f"Connection from {client_address}")
+    while server_running:
+        try:
+            client_socket, client_address = server_socket.accept()
+            print(f"Connection from {client_address}")
 
-        connected_clients.append(client_socket)
+            connected_clients.append(client_socket)
 
-        client_thread = threading.Thread(target=handle_client, args=(
-            client_socket, client_address, connected_clients))
-        client_thread.start()
+            client_thread = threading.Thread(target=handle_client, args=(
+                client_socket, client_address, connected_clients))
+            client_thread.start()
+        except KeyboardInterrupt:
+            break
+
+    server_socket.close()
+    for client_socket in connected_clients:
+        client_socket.close()
+    sys.exit()
 
 
 def handle_client(client_socket, client_address, connected_clients):
@@ -43,8 +55,15 @@ def handle_client(client_socket, client_address, connected_clients):
         client_socket.close()
 
 
+def on_quit(sig, frame):
+    global server_running
+    print("Server is shutting down. Disconnecting all clients...")
+    server_running = False
+
+
 if __name__ == "__main__":
     host = "localhost"
     port = 8080
+    signal.signal(signal.SIGINT, on_quit)
 
     start_server(host, port)

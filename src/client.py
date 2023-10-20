@@ -1,4 +1,5 @@
 import socket
+import sys
 import time
 import keyboard
 import os
@@ -75,7 +76,7 @@ def start_client(host, port, target_date):
 
     keyboard.unhook_all()
     client_socket.close()
-    os._exit(0)
+    sys.exit()
 
 
 if __name__ == "__main__":

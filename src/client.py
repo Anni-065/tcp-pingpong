@@ -22,6 +22,21 @@ def read_data_for_day(csv_file, target_date):
     return filtered_data
 
 
+def send_ping(client_socket):
+    message = "ping"
+
+    for i in range(5):
+        try:
+            start_time = time.time()
+            client_socket.send(message.encode('utf-8'))
+            response = client_socket.recv(1024).decode('utf-8')
+            end_time = time.time()
+            round_trip_time = (end_time - start_time) * 1000
+            print(f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
+        except socket.timeout:
+            print(f"Timeout: No response from server after {timeout}s")
+
+
 def start_client(host, port, target_date):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((host, port))
@@ -37,25 +52,26 @@ def start_client(host, port, target_date):
     keyboard.on_press_key("esc", on_esc_event)
 
     while not is_quit:
-        for i in range(5):
-            if i == 0:
-                data = read_data_for_day(csv_file_path, target_date)
-                message = f"data;{target_date};{data}"
-            else:
-                message = "ping"
+        choice = input(
+            "Enter 'Data' for data, 'Ping' for ping, or ESC to quit: ").lower()
 
+        if choice == 'data' or choice == 'd':
+            data = read_data_for_day(csv_file_path, target_date)
+            message = f"data;{target_date};{data}"
             try:
                 start_time = time.time()
                 client_socket.send(message.encode('utf-8'))
                 response = client_socket.recv(1024).decode('utf-8')
                 end_time = time.time()
                 round_trip_time = (end_time - start_time) * 1000
-                print(
-                    f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
+                print(f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
             except socket.timeout:
                 print(f"Timeout: No response from server after {timeout}s")
-
-        input("Press Enter to send 5 more pings or ESC to quit the client")
+        elif choice == 'ping' or 'p':
+            send_ping(client_socket)
+        else:
+            print(
+                "Invalid choice. Please enter 'Data', 'D', 'Ping', 'P', or ESC to quit the client.")
 
     keyboard.unhook_all()
     client_socket.close()
@@ -65,6 +81,6 @@ def start_client(host, port, target_date):
 if __name__ == "__main__":
     host = "localhost"
     port = 8080
-    target_date = datetime(2023, 10, 10).date()
+    target_date = datetime(2023, 10, 13).date()
 
     start_client(host, port, target_date)

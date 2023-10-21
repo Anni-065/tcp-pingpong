@@ -38,22 +38,28 @@ def send_ping(client_socket):
         except socket.timeout:
             print(f"Timeout: No response from server after {timeout}s")
 
+# Start function for the Client
+
 
 def start_client(host, port, target_date):
     while True:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
+            # Attempt to connect to the server using provided host and port
             client_socket.connect((host, port))
             client_socket.settimeout(timeout)
 
+            # Flag to check whether the user quit the client
             is_quit = False
 
+            # Function to handle "ESC" events and set flag in case of quit
             def on_esc_event(e):
                 nonlocal is_quit
                 if e.event_type == keyboard.KEY_DOWN:
                     is_quit = True
 
+            # Register "ESC" events
             keyboard.on_press_key("esc", on_esc_event)
 
             while not is_quit:
@@ -62,15 +68,20 @@ def start_client(host, port, target_date):
 
                 try:
                     if choice in ["d", "data"]:
+                        # Retrieve data from the CVS-file and format it for the target date
                         data = read_data_for_day(csv_file_path, target_date)
                         message = f"Data for {target_date}:\n{data}"
 
+                        # Measure start time of data sent
                         start_time = time.time()
+                        # Send data to server
                         client_socket.send(message.encode('utf-8'))
+                        # Measure time of response received from the server
                         response = client_socket.recv(1024).decode('utf-8')
                         end_time = time.time()
 
                         round_trip_time = (end_time - start_time) * 1000
+                        # Print response and RTT
                         print(
                             f"Received: {response} \n(RTT: {round_trip_time:.6f}ms)")
 
@@ -84,10 +95,12 @@ def start_client(host, port, target_date):
                         f"Timeout: No response from server after {timeout}s")
 
             print("Client is shutting down.")
+            # Unhook "ESC" key event handler and close client socket
             keyboard.unhook_all()
             client_socket.close()
             sys.exit()
 
+        # Possible exceptions while running the Client
         except ConnectionResetError:
             print("Connection to the server was closed.")
         except ConnectionRefusedError:
@@ -112,6 +125,8 @@ if __name__ == "__main__":
 
     try:
         start_client(host, port, target_date)
+
+    # Exceptions that can occur trying to start & connect the Client
     except ConnectionResetError:
         print("Connection to the server was closed.")
     except ConnectionRefusedError:

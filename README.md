@@ -102,7 +102,7 @@ The TCP Client and Server were implemented using Python. Here's an overview of h
   - If the client sends *'ping'*, the server responds with *'pong'*.
   - If the client sends a message starting with *'data;'*, the server echoes the received data back to the client.
 
-- The global variable `server_running` is used to control whether the server should continue running. The user can stop the server by pressing Ctrl+C in the terminal. This functionality was implemented using the [`signal` module](https://docs.python.org/3/library/signal.html#signal.SIGINT), which registers the Ctr+C event, and sets `server_running` to False. As a result the server and client sockets are closed, and the process is terminated.
+- The user can close the server using a keyboard interrupt, which is caught in the main thread and then sends a signal to the child threads to exit and join back to the main thread. This is implemented using the thread safe way of signaling with the basic [`threading.Event()`](https://docs.python.org/3/library/threading.html#threading.Event) class. As a result the server and client sockets are closed, and the process is terminated.
 
 ### Client Implementation <a name="client"></a>
 

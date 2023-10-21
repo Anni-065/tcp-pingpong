@@ -15,8 +15,9 @@ def start_server(host, port):
 
     # List of connected Clients
     connected_clients = []
-    try:
-        while not exit_signal.is_set():
+
+    while not exit_signal.is_set():
+        try:
             # Accept incoming client connections
             client_socket, client_address = server_socket.accept()
             print(f"Connection from {client_address}")
@@ -40,11 +41,16 @@ def start_server(host, port):
                 print("Server shutting down.")
                 server_socket.close()
                 break
-    except Exception as e:
-        print(e)
-    finally:
-        server_socket.close()
-        sys.exit()
+        except KeyboardInterrupt:
+            # Handle keyboard interrupt to set exit_signal and gracefully exit
+            exit_signal.set()
+            print("Server shutting down.")
+            server_socket.close()
+        except Exception as e:
+            print(e)
+        finally:
+            server_socket.close()
+            sys.exit()
 
 
 def handle_client(client_socket, client_address, connected_clients):
@@ -74,6 +80,7 @@ def handle_client(client_socket, client_address, connected_clients):
 if __name__ == "__main__":
     host = "localhost"
     port = 8080
+    exit_signal.clear()
 
     # Start the server and handle keyboard interrupt
     try:

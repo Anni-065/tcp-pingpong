@@ -33,46 +33,72 @@ def send_ping(client_socket):
             response = client_socket.recv(1024).decode('utf-8')
             end_time = time.time()
             round_trip_time = (end_time - start_time) * 1000
-            print(f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
+            if response:
+                print(f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
         except socket.timeout:
             print(f"Timeout: No response from server after {timeout}s")
 
 
 def start_client(host, port, target_date):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((host, port))
-    client_socket.settimeout(timeout)
+    while True:
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    is_quit = False
+        try:
+            client_socket.connect((host, port))
+            client_socket.settimeout(timeout)
 
-    def on_esc_event(e):
-        nonlocal is_quit
-        if e.event_type == keyboard.KEY_DOWN:
-            is_quit = True
+            is_quit = False
 
-    keyboard.on_press_key("esc", on_esc_event)
+            def on_esc_event(e):
+                nonlocal is_quit
+                if e.event_type == keyboard.KEY_DOWN:
+                    is_quit = True
 
-    while not is_quit:
-        choice = input(
-            "Enter 'Data' for data, 'Ping' for ping, or ESC to quit: ").lower()
+            keyboard.on_press_key("esc", on_esc_event)
 
-        if choice == 'data' or choice == 'd':
-            data = read_data_for_day(csv_file_path, target_date)
-            message = f"data;{target_date};{data}"
-            try:
-                start_time = time.time()
-                client_socket.send(message.encode('utf-8'))
-                response = client_socket.recv(1024).decode('utf-8')
-                end_time = time.time()
-                round_trip_time = (end_time - start_time) * 1000
-                print(f"Received: {response} (RTT: {round_trip_time:.6f}ms)")
-            except socket.timeout:
-                print(f"Timeout: No response from server after {timeout}s")
-        elif choice == 'ping' or 'p':
-            send_ping(client_socket)
-        else:
-            print(
-                "Invalid choice. Please enter 'Data', 'D', 'Ping', 'P', or ESC to quit the client.")
+            while not is_quit:
+                choice = input(
+                    "Enter 'Data' for data, 'Ping' for ping, or ESC to quit: ").strip().lower()
+
+                try:
+                    if choice in ["d", "data"]:
+                        data = read_data_for_day(csv_file_path, target_date)
+                        message = f"Data for {target_date}:\n{data}"
+
+                        start_time = time.time()
+                        client_socket.send(message.encode('utf-8'))
+                        response = client_socket.recv(1024).decode('utf-8')
+                        end_time = time.time()
+
+                        round_trip_time = (end_time - start_time) * 1000
+                        print(
+                            f"Received: {response} \n(RTT: {round_trip_time:.6f}ms)")
+
+                    elif choice in ["p", "ping"]:
+                        send_ping(client_socket)
+                    else:
+                        print(
+                            "Invalid choice. Please enter 'Data', 'D', 'Ping', 'P', or ESC to quit the client.")
+                except socket.timeout:
+                    print(
+                        f"Timeout: No response from server after {timeout}s")
+
+            print("Client is shutting down.")
+            keyboard.unhook_all()
+            client_socket.close()
+            sys.exit()
+
+        except ConnectionResetError:
+            print("Connection to the server was closed.")
+        except ConnectionRefusedError:
+            print("Connection to the server failed. Retrying in 5 seconds...")
+            time.sleep(5)
+        except KeyboardInterrupt:
+            print("Client is shutting down.")
+            break
+        except ConnectionAbortedError:
+            print("Connection to the server was closed.")
+            break
 
     keyboard.unhook_all()
     client_socket.close()
@@ -84,4 +110,14 @@ if __name__ == "__main__":
     port = 8080
     target_date = datetime(2023, 10, 13).date()
 
-    start_client(host, port, target_date)
+    try:
+        start_client(host, port, target_date)
+    except ConnectionResetError:
+        print("Connection to the server was closed.")
+    except ConnectionRefusedError:
+        print("Connection to the server failed. Retrying in 5 seconds...")
+        time.sleep(5)
+    except KeyboardInterrupt:
+        print("Client start interrupted by user.")
+    except Exception as e:
+        print(e)

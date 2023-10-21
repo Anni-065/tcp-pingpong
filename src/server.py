@@ -1,9 +1,9 @@
-import signal
 import socket
 import sys
 import threading
+import time
 
-server_running = True
+exit_signal = threading.Event()
 
 
 def start_server(host, port):
@@ -14,9 +14,9 @@ def start_server(host, port):
     print(f"Server listening on {host}:{port}")
 
     connected_clients = []
+    try:
+        while not exit_signal.is_set():
 
-    while server_running:
-        try:
             client_socket, client_address = server_socket.accept()
             print(f"Connection from {client_address}")
 
@@ -25,29 +25,38 @@ def start_server(host, port):
             client_thread = threading.Thread(target=handle_client, args=(
                 client_socket, client_address, connected_clients))
             client_thread.start()
-        except KeyboardInterrupt:
-            break
 
-    server_socket.close()
-    for client_socket in connected_clients:
-        client_socket.close()
-    sys.exit()
+            # This allows the child threads to exit the main thread and to register the keyboard interrupt
+            try:
+                while not exit_signal.is_set():
+                    time.sleep(0.1)
+                    client_thread.join()
+            except KeyboardInterrupt:
+                exit_signal.set()
+                print("Server shutting down.")
+                server_socket.close()
+                break
+    except Exception as e:
+        print(e)
+    finally:
+        server_socket.close()
+        sys.exit()
 
 
 def handle_client(client_socket, client_address, connected_clients):
     try:
-        while True:
+        while not exit_signal.is_set():
             data = client_socket.recv(1024).decode('utf-8')
             if not data:
                 break
             print(f"Received from {client_address}: {data}")
-
-            if data == "ping":
-                response = "pong"
-                client_socket.send(response.encode('utf-8'))
-            elif data.startswith("data;"):
-                response = data
-                client_socket.send(response.encode('utf-8'))
+            if not exit_signal.is_set():
+                if data == "ping":
+                    response = "pong"
+                    client_socket.send(response.encode('utf-8'))
+                elif data.startswith("Data for"):
+                    response = data
+                    client_socket.send(response.encode('utf-8'))
     except Exception as e:
         print(f"Error handling client: {e}")
     finally:
@@ -55,15 +64,13 @@ def handle_client(client_socket, client_address, connected_clients):
         client_socket.close()
 
 
-def on_quit(sig, frame):
-    global server_running
-    print("Server is shutting down. Disconnecting all clients...")
-    server_running = False
-
-
 if __name__ == "__main__":
     host = "localhost"
     port = 8080
-    signal.signal(signal.SIGINT, on_quit)
 
-    start_server(host, port)
+    try:
+        start_server(host, port)
+    except KeyboardInterrupt:
+        print("Server start interrupted by user.")
+    except Exception as e:
+        print(e)
